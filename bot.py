@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
-# ⚠️ توکن خودت رو اینجا بگذار
+# ⚠️ توکن رو خودت بذار
 TOKEN = "8653861753:AAEUuafpUZhmx_INOqR1oDdRgmtohkBaiZo"
 
 ADMIN_IDS = [5231145229, 6225624558]
@@ -14,6 +14,28 @@ CARD = "6219-8618-0647-8813"
 
 user_data = {}
 user_messages = {}
+
+# ================= RULES =================
+
+RULES_TEXT = """
+📜 قوانین و مقررات استفاده از سرویس
+━━━━━━━━━━━━━━━━━━━━━━
+
+۱ — استفاده از سرویس‌ها صرفاً برای مصرف شخصی می‌باشد و در صورت قرار دادن به عنوان اوتباند یا پخش کردن در کانال‌های مختلف، بدون اخطار کل اکانت بن خواهد شد و هزینه‌ای عودت داده نمی‌شود. ⚠️🚫
+
+۲ — به علت شرایط بسیار سخت در برقراری ارتباط با خارج از کشور، هیچ‌کدام از سرویس‌ها دارای تضمین نمی‌باشد. 🌍❌
+
+۳ — قیمت‌ها به صورت منصفانه به نسبت زمان و هزینه‌هایی که برای برقراری اتصال انجام می‌شود، تعیین شده است. 💰⚖️
+
+۴ — سرویس به صورت خیلی محدود ارائه می‌شود و امکان ارائه یوزر تست نیست. 🔒🙅‍♂️
+
+۵ — 📡 فیلترهای ما روی شبکه اینترنشنال بسته است 🔴
+
+بیشتر مشتریان ما برای کارهای درسی، پروژه‌های دانشجویی و ارتباط با خانواده از سرویس استفاده می‌کنند 💙
+
+━━━━━━━━━━━━━━━━━━━━━━
+با زدن دکمه "✅ می‌پذیرم" تأیید می‌کنی که قوانین را خوانده‌ای.
+"""
 
 # ================= ROLE =================
 
@@ -61,10 +83,45 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    if is_admin(user_id):
-        await update.message.reply_text("👑 پنل OWNER" if is_owner(user_id) else "👑 پنل ادمین")
+    # بعد از عضویت → مستقیم قوانین
+    keyboard = [[InlineKeyboardButton("✅ می‌پذیرم", callback_data="accept_rules")]]
 
-    await home(update, context)
+    await update.message.reply_text(
+        RULES_TEXT,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# ================= CHECK JOIN =================
+
+async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+
+    user_id = q.from_user.id
+
+    if await is_member(context.bot, user_id):
+
+        keyboard = [[InlineKeyboardButton("✅ می‌پذیرم", callback_data="accept_rules")]]
+
+        await q.edit_message_text(
+            RULES_TEXT,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    else:
+        await q.answer("❌ هنوز عضو کانال نشدی!", show_alert=True)
+
+# ================= ACCEPT RULES =================
+
+async def accept_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+
+    keyboard = [[InlineKeyboardButton("🚀 شروع خرید", callback_data="go_locations")]]
+
+    await q.edit_message_text(
+        "✅ قوانین پذیرفته شد\n\nحالا میتونی خریدت رو شروع کنی 👇",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 # ================= LOCATIONS =================
 
@@ -79,7 +136,10 @@ async def locations(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔙 خانه", callback_data="home")]
     ]
 
-    await q.edit_message_text("💎 لوکیشن سرویس رو انتخاب کن:", reply_markup=InlineKeyboardMarkup(keyboard))
+    await q.edit_message_text(
+        "💎 لوکیشن سرویس رو انتخاب کن:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 # ================= PLANS =================
 
@@ -118,9 +178,6 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = q.from_user.id
     plan = q.data.split("_")[1]
 
-    if user_id not in user_data:
-        user_data[user_id] = {}
-
     user_data[user_id]["plan"] = plan
 
     price_map = {"1": 369, "2": 738, "3": 1107, "4": 1476, "5": 1845, "10": 3690}
@@ -138,7 +195,7 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📸 رسید ارسال کن
 """)
 
-# ================= RECEIPT (FIXED) =================
+# ================= RECEIPT =================
 
 async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
@@ -175,7 +232,7 @@ async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """
         )
 
-    await update.message.reply_text("✅ سفارش و رسید ارسال شد")
+    await update.message.reply_text("✅ سفارش ثبت شد")
 
 # ================= ADMIN REPLY =================
 
@@ -207,6 +264,9 @@ app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("home", home))
+
+app.add_handler(CallbackQueryHandler(check_join, pattern="check_join"))
+app.add_handler(CallbackQueryHandler(accept_rules, pattern="accept_rules"))
 
 app.add_handler(CallbackQueryHandler(locations, pattern="go_locations"))
 app.add_handler(CallbackQueryHandler(plans, pattern="loc_"))
