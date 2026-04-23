@@ -1,6 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
+# ⚠️ توکن خودت رو اینجا بگذار
 TOKEN = "8653861753:AAEUuafpUZhmx_INOqR1oDdRgmtohkBaiZo"
 
 ADMIN_IDS = [5231145229, 6225624558]
@@ -61,7 +62,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if is_admin(user_id):
-        await update.message.reply_text("👑 پنل ادمین" if not is_owner(user_id) else "👑 پنل OWNER")
+        await update.message.reply_text("👑 پنل OWNER" if is_owner(user_id) else "👑 پنل ادمین")
 
     await home(update, context)
 
@@ -89,15 +90,15 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     loc = q.data.split("_")[1]
     user_data[q.from_user.id] = {"loc": loc}
 
-    title = {"de": "آلمان", "nl": "هلند"}.get(loc, "ترکیه")
+    title = {"de": "آلمان", "nl": "هلند", "tr": "ترکیه"}.get(loc, "سرویس")
 
     plans = [
-        ("1GB - 400", "1"),
-        ("2GB - 800", "2"),
-        ("3GB - 1200", "3"),
-        ("4GB - 1600", "4"),
-        ("5GB - 2000", "5"),
-        ("10GB - 4000", "10"),
+        ("1GB - 369", "1"),
+        ("2GB - 738", "2"),
+        ("3GB - 1107", "3"),
+        ("4GB - 1476", "4"),
+        ("5GB - 1845", "5"),
+        ("10GB - 3690", "10"),
     ]
 
     keyboard = [[InlineKeyboardButton(p[0], callback_data=f"plan_{p[1]}")] for p in plans]
@@ -117,9 +118,12 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = q.from_user.id
     plan = q.data.split("_")[1]
 
+    if user_id not in user_data:
+        user_data[user_id] = {}
+
     user_data[user_id]["plan"] = plan
 
-    price_map = {"1": 400, "2": 800, "3": 1200, "4": 1600, "5": 2000, "10": 4000}
+    price_map = {"1": 369, "2": 738, "3": 1107, "4": 1476, "5": 1845, "10": 3690}
     price = price_map[plan]
 
     await q.edit_message_text(f"""
@@ -134,23 +138,46 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📸 رسید ارسال کن
 """)
 
-# ================= FIXED RECEIPT (IMPORTANT) =================
+# ================= RECEIPT (FIXED) =================
 
 async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
+    user_id = user.id
+
+    order_info = user_data.get(user_id, {})
+
+    loc = order_info.get("loc", "نامشخص")
+    plan = order_info.get("plan", "نامشخص")
+
+    price_map = {"1": 369, "2": 738, "3": 1107, "4": 1476, "5": 1845, "10": 3690}
+    price = price_map.get(plan, "نامشخص")
 
     for admin in ADMIN_IDS:
-        sent = await context.bot.copy_message(
+        sent = await context.bot.forward_message(
             chat_id=admin,
             from_chat_id=update.message.chat_id,
             message_id=update.message.message_id
         )
 
-        user_messages[sent.message_id] = user.id
+        user_messages[sent.message_id] = user_id
 
-    await update.message.reply_text("✅ رسید ارسال شد")
+        await context.bot.send_message(
+            chat_id=admin,
+            text=f"""
+🧾 سفارش جدید
 
-# ================= FIXED ADMIN REPLY =================
+👤 کاربر: {user_id}
+🌍 لوکیشن: {loc}
+📦 پلن: {plan}GB
+💵 قیمت: {price} تومان
+
+👆 رسید بالا فوروارد شد
+"""
+        )
+
+    await update.message.reply_text("✅ سفارش و رسید ارسال شد")
+
+# ================= ADMIN REPLY =================
 
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -173,20 +200,6 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=target_user,
         text=f"📩 پاسخ ادمین:\n\n{msg}"
     )
-
-    if user_id != OWNER_ID:
-        await context.bot.send_message(
-            chat_id=OWNER_ID,
-            text=f"""
-📡 لاگ پیام
-
-👤 ادمین: {user_id}
-🎯 کاربر: {target_user}
-
-💬 پیام:
-{msg}
-"""
-        )
 
 # ================= RUN =================
 
