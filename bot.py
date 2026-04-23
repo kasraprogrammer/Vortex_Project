@@ -3,9 +3,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 
 TOKEN = "8653861753:AAEUuafpUZhmx_INOqR1oDdRgmtohkBaiZo"
 
-# 👥 چند ادمین
-ADMIN_IDS = [5231145229, 6225624558] 
-OWNER_ID = 5231145229 
+ADMIN_IDS = [5231145229, 6225624558]
+OWNER_ID = 5231145229
 
 CHANNEL_USERNAME = "@Vortexsshop"
 CHANNEL_LINK = "https://t.me/Vortexsshop"
@@ -14,6 +13,13 @@ CARD = "6219-8618-0647-8813"
 
 user_data = {}
 user_messages = {}
+
+# 📊 دیتابیس ساده در RAM
+users = set()
+orders = {}
+pending = set()
+approved = set()
+completed = set()
 
 
 def is_admin(user_id):
@@ -28,6 +34,7 @@ async def is_member(bot, user_id):
         return False
 
 
+# 🏠 HOME
 async def home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("🚀 شروع خرید", callback_data="go_locations")]]
 
@@ -38,9 +45,12 @@ async def home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
+
 # /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
+
+    users.add(user_id)  # 👈 ثبت کاربر
 
     if not await is_member(context.bot, user_id):
         keyboard = [
@@ -49,7 +59,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
 
         await update.message.reply_text(
-            "⚠️ برای استفاده از ربات باید عضو کانال باشی:",
+            "⚠️ برای استفاده باید عضو کانال باشی:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
@@ -57,19 +67,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await home(update, context)
 
 
-async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-
-    user_id = q.from_user.id
-
-    if await is_member(context.bot, user_id):
-        keyboard = [[InlineKeyboardButton("🚀 شروع خرید", callback_data="go_locations")]]
-        await q.edit_message_text("✅ عضویت تایید شد", reply_markup=InlineKeyboardMarkup(keyboard))
-    else:
-        await q.answer("❌ هنوز عضو کانال نشدی", show_alert=True)
-
-
+# 📍 لوکیشن‌ها
 async def locations(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -81,17 +79,16 @@ async def locations(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔙 خانه", callback_data="home")]
     ]
 
-    await q.edit_message_text("💎 لوکیشن سرویس رو انتخاب کن:", reply_markup=InlineKeyboardMarkup(keyboard))
+    await q.edit_message_text("💎 لوکیشن:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 
+# 📦 پلن
 async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
 
     loc = q.data.split("_")[1]
     user_data[q.from_user.id] = {"loc": loc}
-
-    title = {"de": "آلمان", "nl": "هلند"}.get(loc, "ترکیه")
 
     plans = [
         ("1GB - 400", "1"),
@@ -103,14 +100,11 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     keyboard = [[InlineKeyboardButton(p[0], callback_data=f"plan_{p[1]}")] for p in plans]
-    keyboard.append([InlineKeyboardButton("🔙 برگشت", callback_data="go_locations")])
 
-    await q.edit_message_text(
-        f"💎 {title}\nحجم سرویس رو انتخاب کن:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    await q.edit_message_text("💎 انتخاب حجم:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 
+# 🧾 سفارش
 async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -123,15 +117,14 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     price_map = {"1": 400, "2": 800, "3": 1200, "4": 1600, "5": 2000, "10": 4000}
     price = price_map[plan]
 
+    orders[user_id] = "pending"
+    pending.add(user_id)
+
     text = f"""
-📦 فاکتور نهایی
+📦 فاکتور
 
-🔘 لوکیشن : {user_data[user_id]['loc']}
-♾ حجم : {plan}GB
-💵 قیمت : {price} تومان
-
-💳 کارت:
-{CARD}
+💵 قیمت: {price} تومان
+💳 کارت: {CARD}
 
 📸 رسید ارسال کن
 """
@@ -139,11 +132,11 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.edit_message_text(text)
 
 
+# 📥 رسید
 async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
 
     forwarded = await update.message.forward(chat_id=ADMIN_IDS[0])
-
 
     for admin in ADMIN_IDS[1:]:
         await context.bot.forward_message(
@@ -157,6 +150,7 @@ async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ رسید ارسال شد")
 
 
+# 💬 ریپلای ادمین
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
 
@@ -173,40 +167,61 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         msg = update.message.text
 
-        # ارسال به کاربر
         await context.bot.send_message(
             chat_id=target_user,
-            text=f"📩 پاسخ ادمین:\n\n{msg}"
+            text=f"📩 پاسخ:\n\n{msg}"
         )
 
-        # 🔥 لاگ برای OWNER
-        if user_id != OWNER_ID:
-            await context.bot.send_message(
-                chat_id=OWNER_ID,
-                text=f"""
-📡 لاگ پیام
 
-👤 ادمین: {user_id}
-🎯 کاربر: {target_user}
+# 📊 داشبورد OWNER
+async def owner_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
 
-💬 پیام:
-{msg}
+    if user_id != OWNER_ID:
+        return
+
+    text = f"""
+📊 داشبورد فروش
+
+👥 کاربران: {len(users)}
+🛒 سفارش‌ها: {len(orders)}
+📥 رسیدهای ارسال‌شده: {len(pending) + len(approved)}
+⏳ تایید نشده: {len(pending)}
+✅ تایید شده: {len(approved)}
+📦 تکمیل شده: {len(completed)}
 """
-            )
+
+    await update.message.reply_text(text)
+
+
+# 🚫 محدود کردن کاربر
+async def block_user_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message is None:
+        return
+
+    if update.message.photo:
+        return
+
+    if update.message.text and update.message.text.startswith("/start"):
+        return
+
+    await update.message.delete()
+
 
 # 🚀 اجرا
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("home", home))
+app.add_handler(CommandHandler("stats", owner_stats))  # 👑 داشبورد
 
-app.add_handler(CallbackQueryHandler(check_join, pattern="check_join"))
-app.add_handler(CallbackQueryHandler(home, pattern="home"))
 app.add_handler(CallbackQueryHandler(locations, pattern="go_locations"))
 app.add_handler(CallbackQueryHandler(plans, pattern="loc_"))
 app.add_handler(CallbackQueryHandler(order, pattern="plan_"))
 
 app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, receipt))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_reply))
+
+app.add_handler(MessageHandler(filters.ALL, block_user_messages), group=1)
 
 app.run_polling()
