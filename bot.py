@@ -16,42 +16,10 @@ user_messages = {}
 
 users = set()
 orders = {}
+pending = set()
 
-# 📥 در انتظار سفارشات
-pending_users = {}
-
-# ===================== PRODUCTS =====================
-
-PRODUCTS = {
-    "nl": {
-        "name": "🇳🇱 هلند",
-        "plans": {
-            "1": {"gb": 1, "price": 400},
-            "2": {"gb": 2, "price": 800},
-            "3": {"gb": 3, "price": 1200},
-            "5": {"gb": 5, "price": 2000},
-            "10": {"gb": 10, "price": 4000},
-        }
-    },
-    "tr": {
-        "name": "🇹🇷 ترکیه",
-        "plans": {
-            "1": {"gb": 1, "price": 350},
-            "2": {"gb": 2, "price": 700},
-            "3": {"gb": 3, "price": 1100},
-            "5": {"gb": 5, "price": 1900},
-        }
-    },
-    "de": {
-        "name": "🇩🇪 آلمان",
-        "plans": {
-            "1": {"gb": 1, "price": 450},
-            "2": {"gb": 2, "price": 900},
-            "3": {"gb": 3, "price": 1300},
-            "5": {"gb": 5, "price": 2100},
-        }
-    }
-}
+# 📥 ذخیره رسیدها (حل مشکل اصلی تو)
+receipts = {}
 
 # ===================== MENUS =====================
 
@@ -63,12 +31,13 @@ def user_menu():
 
 def admin_menu():
     return ReplyKeyboardMarkup(
-        [["📊 آمار", "⏳ در انتظار"]],
+        [["📊 آمار", "📥 رسیدها"]],
         resize_keyboard=True
     )
 
 def is_admin(user_id):
     return user_id in ADMIN_IDS
+
 
 # ===================== START =====================
 
@@ -79,50 +48,67 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id in ADMIN_IDS:
         await update.message.reply_text("👑 پنل ادمین", reply_markup=admin_menu())
     else:
-        await update.message.reply_text("🏠 خوش آمدی", reply_markup=user_menu())
+        await update.message.reply_text("🏠 به Vortex Shop خوش آمدی", reply_markup=user_menu())
 
-# ===================== LOCATIONS =====================
 
-async def locations(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
+# ===================== TEXT HANDLER =====================
 
-    keyboard = [
-        [InlineKeyboardButton("🇳🇱 هلند", callback_data="loc_nl")],
-        [InlineKeyboardButton("🇹🇷 ترکیه", callback_data="loc_tr")],
-        [InlineKeyboardButton("🇩🇪 آلمان", callback_data="loc_de")]
-    ]
+async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    user_id = update.message.from_user.id
 
-    await q.edit_message_text(
-        "💎 کشور را انتخاب کن:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    # 👤 USER
+    if user_id not in ADMIN_IDS:
 
-# ===================== PLANS =====================
+        if text == "🚀 شروع خرید":
+            keyboard = [
+                [InlineKeyboardButton("🇳🇱 هلند", callback_data="loc_nl")],
+                [InlineKeyboardButton("🇹🇷 ترکیه", callback_data="loc_tr")],
+                [InlineKeyboardButton("🇩🇪 آلمان", callback_data="loc_de")]
+            ]
 
-async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-
-    loc = q.data.split("_")[1]
-    user_data[q.from_user.id] = {"loc": loc}
-
-    product = PRODUCTS[loc]
-
-    keyboard = []
-
-    for plan_id, data in product["plans"].items():
-        keyboard.append([
-            InlineKeyboardButton(
-                f"{data['gb']}GB - {data['price']} تومان",
-                callback_data=f"plan_{plan_id}"
+            await update.message.reply_text(
+                "💎 لوکیشن:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
-        ])
 
-    await q.edit_message_text(
-        f"💎 {product['name']}\nپلن را انتخاب کن:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+        elif text == "📦 سفارشات":
+            await update.message.reply_text("📦 سفارشی ثبت نشده")
+
+        return
+
+    # 👑 ADMIN
+    if user_id in ADMIN_IDS:
+
+        if text == "📊 آمار":
+            await update.message.reply_text(f"""
+📊 آمار
+
+👥 کاربران: {len(users)}
+🛒 سفارشات: {len(orders)}
+📥 رسیدها: {len(receipts)}
+""")
+
+        elif text == "📥 رسیدها":
+
+            if not receipts:
+                await update.message.reply_text("📭 هیچ رسیدی وجود ندارد")
+                return
+
+            keyboard = []
+            for msg_id, data in receipts.items():
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"👤 {data['user_id']}",
+                        callback_data=f"view_{msg_id}"
+                    )
+                ])
+
+            await update.message.reply_text(
+                "📥 لیست رسیدها:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
 
 # ===================== ORDER =====================
 
@@ -131,110 +117,61 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.answer()
 
     user_id = q.from_user.id
-    plan_id = q.data.split("_")[1]
+    plan = q.data.split("_")[1]
 
-    loc = user_data[user_id]["loc"]
-    product = PRODUCTS[loc]
-    plan = product["plans"][plan_id]
+    user_data[user_id] = {"plan": plan}
 
-    pending_users[user_id] = {
-        "plan": f"{plan['gb']}GB",
-        "price": plan["price"],
-        "status": "pending",
-        "receipt_msg_id": None
-    }
+    price_map = {"1": 400, "2": 800, "3": 1200, "4": 1600, "5": 2000, "10": 4000}
+    price = price_map.get(plan, 400)
+
+    orders[user_id] = "pending"
+    pending.add(user_id)
 
     await q.edit_message_text(f"""
 📦 فاکتور
 
-🌍 محصول: {product['name']}
-📦 حجم: {plan['gb']}GB
-💰 قیمت: {plan['price']} تومان
-
+💵 قیمت: {price}
 💳 کارت: {CARD}
 
 📸 رسید ارسال کن
 """)
 
-# ===================== RECEIPT =====================
+# ===================== RECEIPT FIX =====================
 
 async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
 
     forwarded = await update.message.forward(chat_id=ADMIN_IDS[0])
 
-    if user.id in pending_users:
-        pending_users[user.id]["receipt_msg_id"] = forwarded.message_id
+    receipts[forwarded.message_id] = {
+        "user_id": user.id,
+        "username": user.username
+    }
 
     await update.message.reply_text("✅ رسید ارسال شد")
 
-# ===================== ADMIN PANEL =====================
+# ===================== VIEW RECEIPT =====================
 
-async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    user_id = update.message.from_user.id
-
-    if user_id not in ADMIN_IDS:
-        return
-
-    # 📊 آمار
-    if text == "📊 آمار":
-        await update.message.reply_text(f"""
-📊 آمار
-
-👥 کاربران: {len(users)}
-⏳ در انتظار: {len(pending_users)}
-""")
-
-    # ⏳ در انتظار
-    elif text == "⏳ در انتظار":
-
-        if not pending_users:
-            await update.message.reply_text("📭 چیزی وجود ندارد")
-            return
-
-        keyboard = []
-
-        for uid, data in pending_users.items():
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"👤 {uid} | {data['plan']}",
-                    callback_data=f"pending_{uid}"
-                )
-            ])
-
-        await update.message.reply_text(
-            "⏳ سفارشات:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-
-# ===================== VIEW PENDING =====================
-
-async def view_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def view_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
 
-    user_id = int(q.data.split("_")[1])
-    data = pending_users[user_id]
-
-    receipt_text = "❌ رسید ندارد"
-    if data.get("receipt_msg_id"):
-        receipt_text = "📥 رسید ثبت شده"
+    msg_id = int(q.data.split("_")[1])
+    data = receipts[msg_id]
 
     keyboard = [
-        [InlineKeyboardButton("✅ تایید سفارش", callback_data=f"approve_{user_id}")]
+        [InlineKeyboardButton("✅ تایید", callback_data=f"approve_{msg_id}")],
+        [InlineKeyboardButton("❌ رد", callback_data=f"reject_{msg_id}")]
     ]
 
-    await q.edit_message_text(f"""
-⏳ سفارش
+    await q.edit_message_text(
+        f"""
+📥 رسید
 
-👤 {user_id}
-📦 {data['plan']}
-💰 {data['price']}
-⏳ در انتظار
-
-{receipt_text}
-""", reply_markup=InlineKeyboardMarkup(keyboard))
+👤 کاربر: {data['user_id']}
+""",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 # ===================== APPROVE =====================
 
@@ -242,17 +179,37 @@ async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
 
-    user_id = int(q.data.split("_")[1])
+    msg_id = int(q.data.split("_")[1])
+    user_id = receipts[msg_id]["user_id"]
 
-    if user_id in pending_users:
-        del pending_users[user_id]
+    await context.bot.send_message(
+        chat_id=user_id,
+        text="✅ پرداخت تایید شد"
+    )
 
-        await context.bot.send_message(
-            chat_id=user_id,
-            text="✅ سفارش شما تایید شد\n⏳ منتظر دریافت سرویس باشید"
-        )
+    del receipts[msg_id]
 
     await q.edit_message_text("✅ تایید شد")
+
+
+# ===================== REJECT =====================
+
+async def reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+
+    msg_id = int(q.data.split("_")[1])
+    user_id = receipts[msg_id]["user_id"]
+
+    await context.bot.send_message(
+        chat_id=user_id,
+        text="❌ پرداخت رد شد"
+    )
+
+    del receipts[msg_id]
+
+    await q.edit_message_text("❌ رد شد")
+
 
 # ===================== RUN =====================
 
@@ -263,9 +220,9 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
 app.add_handler(MessageHandler(filters.PHOTO, receipt))
 
-app.add_handler(CallbackQueryHandler(locations, pattern="loc_"))
-app.add_handler(CallbackQueryHandler(plans, pattern="plan_"))
-app.add_handler(CallbackQueryHandler(view_pending, pattern="pending_"))
+app.add_handler(CallbackQueryHandler(order, pattern="plan_"))
+app.add_handler(CallbackQueryHandler(view_receipt, pattern="view_"))
 app.add_handler(CallbackQueryHandler(approve, pattern="approve_"))
+app.add_handler(CallbackQueryHandler(reject, pattern="reject_"))
 
 app.run_polling()
