@@ -3,7 +3,6 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 
 TOKEN = "8653861753:AAEUuafpUZhmx_INOqR1oDdRgmtohkBaiZo"
 
-# 👥 ادمین‌ها
 ADMIN_IDS = [5231145229, 6225624558]
 OWNER_ID = 5231145229
 
@@ -15,7 +14,7 @@ CARD = "6219-8618-0647-8813"
 user_data = {}
 user_messages = {}
 
-# ===================== ROLES =====================
+# ================= ROLE =================
 
 def is_admin(user_id):
     return user_id in ADMIN_IDS
@@ -23,7 +22,7 @@ def is_admin(user_id):
 def is_owner(user_id):
     return user_id == OWNER_ID
 
-# ===================== MEMBER CHECK =====================
+# ================= MEMBER CHECK =================
 
 async def is_member(bot, user_id):
     try:
@@ -32,7 +31,7 @@ async def is_member(bot, user_id):
     except:
         return False
 
-# ===================== HOME =====================
+# ================= HOME =================
 
 async def home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("🚀 شروع خرید", callback_data="go_locations")]]
@@ -44,7 +43,7 @@ async def home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
-# ===================== START =====================
+# ================= START =================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -56,35 +55,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
 
         await update.message.reply_text(
-            "⚠️ برای استفاده از ربات باید عضو کانال باشی:",
+            "⚠️ برای استفاده باید عضو کانال باشی:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
 
-    # 👑 پنل‌ها
     if is_admin(user_id):
-        if is_owner(user_id):
-            await update.message.reply_text("👑 پنل OWNER")
-        else:
-            await update.message.reply_text("🛠 پنل ADMIN")
+        await update.message.reply_text("👑 پنل ادمین" if not is_owner(user_id) else "👑 پنل OWNER")
 
     await home(update, context)
 
-# ===================== CHECK JOIN =====================
-
-async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-
-    user_id = q.from_user.id
-
-    if await is_member(context.bot, user_id):
-        keyboard = [[InlineKeyboardButton("🚀 شروع خرید", callback_data="go_locations")]]
-        await q.edit_message_text("✅ عضویت تایید شد", reply_markup=InlineKeyboardMarkup(keyboard))
-    else:
-        await q.answer("❌ هنوز عضو کانال نشدی", show_alert=True)
-
-# ===================== LOCATIONS =====================
+# ================= LOCATIONS =================
 
 async def locations(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -99,7 +80,7 @@ async def locations(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await q.edit_message_text("💎 لوکیشن سرویس رو انتخاب کن:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-# ===================== PLANS =====================
+# ================= PLANS =================
 
 async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -127,7 +108,7 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-# ===================== ORDER =====================
+# ================= ORDER =================
 
 async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -153,25 +134,23 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📸 رسید ارسال کن
 """)
 
-# ===================== RECEIPT =====================
+# ================= FIXED RECEIPT (IMPORTANT) =================
 
 async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
 
-    forwarded = await update.message.forward(chat_id=ADMIN_IDS[0])
-
-    user_messages[forwarded.message_id] = user.id
-
-    for admin in ADMIN_IDS[1:]:
-        await context.bot.forward_message(
+    for admin in ADMIN_IDS:
+        sent = await context.bot.copy_message(
             chat_id=admin,
             from_chat_id=update.message.chat_id,
             message_id=update.message.message_id
         )
 
+        user_messages[sent.message_id] = user.id
+
     await update.message.reply_text("✅ رسید ارسال شد")
 
-# ===================== ADMIN REPLY =====================
+# ================= FIXED ADMIN REPLY =================
 
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -184,19 +163,21 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     replied_id = update.message.reply_to_message.message_id
 
-    if replied_id in user_messages:
-        target_user = user_messages[replied_id]
-        msg = update.message.text
+    if replied_id not in user_messages:
+        return
 
+    target_user = user_messages[replied_id]
+    msg = update.message.text
+
+    await context.bot.send_message(
+        chat_id=target_user,
+        text=f"📩 پاسخ ادمین:\n\n{msg}"
+    )
+
+    if user_id != OWNER_ID:
         await context.bot.send_message(
-            chat_id=target_user,
-            text=f"📩 پاسخ ادمین:\n\n{msg}"
-        )
-
-        if user_id != OWNER_ID:
-            await context.bot.send_message(
-                chat_id=OWNER_ID,
-                text=f"""
+            chat_id=OWNER_ID,
+            text=f"""
 📡 لاگ پیام
 
 👤 ادمین: {user_id}
@@ -205,17 +186,15 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 💬 پیام:
 {msg}
 """
-            )
+        )
 
-# ===================== RUN =====================
+# ================= RUN =================
 
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("home", home))
 
-app.add_handler(CallbackQueryHandler(check_join, pattern="check_join"))
-app.add_handler(CallbackQueryHandler(home, pattern="home"))
 app.add_handler(CallbackQueryHandler(locations, pattern="go_locations"))
 app.add_handler(CallbackQueryHandler(plans, pattern="loc_"))
 app.add_handler(CallbackQueryHandler(order, pattern="plan_"))
