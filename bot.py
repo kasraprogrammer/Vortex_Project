@@ -3,9 +3,9 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 
 TOKEN = "8653861753:AAEUuafpUZhmx_INOqR1oDdRgmtohkBaiZo"
 
-# 👥 چند ادمین
-ADMIN_IDS = [5231145229, 6225624558] 
-OWNER_ID = 5231145229 
+# 👥 ادمین‌ها
+ADMIN_IDS = [5231145229, 6225624558]
+OWNER_ID = 5231145229
 
 CHANNEL_USERNAME = "@Vortexsshop"
 CHANNEL_LINK = "https://t.me/Vortexsshop"
@@ -15,10 +15,15 @@ CARD = "6219-8618-0647-8813"
 user_data = {}
 user_messages = {}
 
+# ===================== ROLES =====================
 
 def is_admin(user_id):
     return user_id in ADMIN_IDS
 
+def is_owner(user_id):
+    return user_id == OWNER_ID
+
+# ===================== MEMBER CHECK =====================
 
 async def is_member(bot, user_id):
     try:
@@ -27,6 +32,7 @@ async def is_member(bot, user_id):
     except:
         return False
 
+# ===================== HOME =====================
 
 async def home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("🚀 شروع خرید", callback_data="go_locations")]]
@@ -38,7 +44,8 @@ async def home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
-# /start
+# ===================== START =====================
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
 
@@ -54,8 +61,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # 👑 پنل‌ها
+    if is_admin(user_id):
+        if is_owner(user_id):
+            await update.message.reply_text("👑 پنل OWNER")
+        else:
+            await update.message.reply_text("🛠 پنل ADMIN")
+
     await home(update, context)
 
+# ===================== CHECK JOIN =====================
 
 async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -69,6 +84,7 @@ async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await q.answer("❌ هنوز عضو کانال نشدی", show_alert=True)
 
+# ===================== LOCATIONS =====================
 
 async def locations(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -83,6 +99,7 @@ async def locations(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await q.edit_message_text("💎 لوکیشن سرویس رو انتخاب کن:", reply_markup=InlineKeyboardMarkup(keyboard))
 
+# ===================== PLANS =====================
 
 async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -110,6 +127,7 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+# ===================== ORDER =====================
 
 async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -123,10 +141,9 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     price_map = {"1": 400, "2": 800, "3": 1200, "4": 1600, "5": 2000, "10": 4000}
     price = price_map[plan]
 
-    text = f"""
+    await q.edit_message_text(f"""
 📦 فاکتور نهایی
 
-🔘 لوکیشن : {user_data[user_id]['loc']}
 ♾ حجم : {plan}GB
 💵 قیمت : {price} تومان
 
@@ -134,16 +151,16 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {CARD}
 
 📸 رسید ارسال کن
-"""
+""")
 
-    await q.edit_message_text(text)
-
+# ===================== RECEIPT =====================
 
 async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
 
     forwarded = await update.message.forward(chat_id=ADMIN_IDS[0])
 
+    user_messages[forwarded.message_id] = user.id
 
     for admin in ADMIN_IDS[1:]:
         await context.bot.forward_message(
@@ -152,10 +169,9 @@ async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
             message_id=update.message.message_id
         )
 
-    user_messages[forwarded.message_id] = user.id
-
     await update.message.reply_text("✅ رسید ارسال شد")
 
+# ===================== ADMIN REPLY =====================
 
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -170,16 +186,13 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if replied_id in user_messages:
         target_user = user_messages[replied_id]
-
         msg = update.message.text
 
-        # ارسال به کاربر
         await context.bot.send_message(
             chat_id=target_user,
             text=f"📩 پاسخ ادمین:\n\n{msg}"
         )
 
-        # 🔥 لاگ برای OWNER
         if user_id != OWNER_ID:
             await context.bot.send_message(
                 chat_id=OWNER_ID,
@@ -194,7 +207,8 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """
             )
 
-# 🚀 اجرا
+# ===================== RUN =====================
+
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
