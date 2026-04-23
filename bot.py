@@ -1,6 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
+# ⚠️ توکن رو خودت بذار
 TOKEN = "8653861753:AAEUuafpUZhmx_INOqR1oDdRgmtohkBaiZo"
 
 ADMIN_IDS = [5231145229, 6225624558]
@@ -14,14 +15,37 @@ CARD = "6219-8618-0647-8813"
 user_data = {}
 user_messages = {}
 
-RULES_TEXT = """📜 قوانین و مقررات استفاده از سرویس
+# ================= RULES =================
+
+RULES_TEXT = """
+📜 قوانین و مقررات استفاده از سرویس
 ━━━━━━━━━━━━━━━━━━━━━━
-...
+
+۱ — استفاده از سرویس‌ها صرفاً برای مصرف شخصی می‌باشد و در صورت قرار دادن به عنوان اوتباند یا پخش کردن در کانال‌های مختلف، بدون اخطار کل اکانت بن خواهد شد و هزینه‌ای عودت داده نمی‌شود. ⚠️🚫
+
+۲ — به علت شرایط بسیار سخت در برقراری ارتباط با خارج از کشور، هیچ‌کدام از سرویس‌ها دارای تضمین نمی‌باشد. 🌍❌
+
+۳ — قیمت‌ها به صورت منصفانه به نسبت زمان و هزینه‌هایی که برای برقراری اتصال انجام می‌شود، تعیین شده است. 💰⚖️
+
+۴ — سرویس به صورت خیلی محدود ارائه می‌شود و امکان ارائه یوزر تست نیست. 🔒🙅‍♂️
+
+۵ — 📡 فیلترهای ما روی شبکه اینترنشنال بسته است 🔴
+
+بیشتر مشتریان ما برای کارهای درسی، پروژه‌های دانشجویی و ارتباط با خانواده از سرویس استفاده می‌کنند 💙
+
+━━━━━━━━━━━━━━━━━━━━━━
 با زدن دکمه "✅ می‌پذیرم" تأیید می‌کنی که قوانین را خوانده‌ای.
 """
 
+# ================= ROLE =================
+
 def is_admin(user_id):
     return user_id in ADMIN_IDS
+
+def is_owner(user_id):
+    return user_id == OWNER_ID
+
+# ================= MEMBER CHECK =================
 
 async def is_member(bot, user_id):
     try:
@@ -30,14 +54,19 @@ async def is_member(bot, user_id):
     except:
         return False
 
+# ================= HOME =================
+
 async def home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("🚀 شروع خرید", callback_data="go_locations")]]
+
     text = "🏠 به Vortex Shop خوش آمدی"
 
     if update.message:
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
     else:
         await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+# ================= START =================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -54,12 +83,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # بعد از عضویت → مستقیم قوانین
     keyboard = [[InlineKeyboardButton("✅ می‌پذیرم", callback_data="accept_rules")]]
 
     await update.message.reply_text(
         RULES_TEXT,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+# ================= CHECK JOIN =================
 
 async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -68,10 +100,17 @@ async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = q.from_user.id
 
     if await is_member(context.bot, user_id):
+
         keyboard = [[InlineKeyboardButton("✅ می‌پذیرم", callback_data="accept_rules")]]
-        await q.edit_message_text(RULES_TEXT, reply_markup=InlineKeyboardMarkup(keyboard))
+
+        await q.edit_message_text(
+            RULES_TEXT,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     else:
         await q.answer("❌ هنوز عضو کانال نشدی!", show_alert=True)
+
+# ================= ACCEPT RULES =================
 
 async def accept_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -84,6 +123,8 @@ async def accept_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+# ================= LOCATIONS =================
+
 async def locations(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -95,7 +136,12 @@ async def locations(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔙 خانه", callback_data="home")]
     ]
 
-    await q.edit_message_text("💎 لوکیشن سرویس رو انتخاب کن:", reply_markup=InlineKeyboardMarkup(keyboard))
+    await q.edit_message_text(
+        "💎 لوکیشن سرویس رو انتخاب کن:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# ================= PLANS =================
 
 async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -118,7 +164,12 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(p[0], callback_data=f"plan_{p[1]}")] for p in plans]
     keyboard.append([InlineKeyboardButton("🔙 برگشت", callback_data="go_locations")])
 
-    await q.edit_message_text(f"💎 {title}\nحجم سرویس رو انتخاب کن:", reply_markup=InlineKeyboardMarkup(keyboard))
+    await q.edit_message_text(
+        f"💎 {title}\nحجم سرویس رو انتخاب کن:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# ================= ORDER =================
 
 async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -144,6 +195,8 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📸 رسید ارسال کن
 """)
 
+# ================= RECEIPT =================
+
 async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     user_id = user.id
@@ -157,64 +210,77 @@ async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     price = price_map.get(plan, "نامشخص")
 
     for admin in ADMIN_IDS:
-        forwarded = await context.bot.forward_message(
+        sent = await context.bot.forward_message(
             chat_id=admin,
             from_chat_id=update.message.chat_id,
             message_id=update.message.message_id
         )
 
-        info_msg = await context.bot.send_message(
+        user_messages[sent.message_id] = user_id
+
+        await context.bot.send_message(
             chat_id=admin,
-            text=f"""🧾 سفارش جدید
+            text=f"""
+🧾 سفارش جدید
 
 👤 کاربر: {user_id}
 🌍 لوکیشن: {loc}
 📦 پلن: {plan}GB
 💵 قیمت: {price} تومان
 
-👆 به این پیام یا رسید ریپلای کن"""
+👆 رسید بالا فوروارد شد
+"""
         )
-
-        # مهم: ذخیره هر دو پیام
-        user_messages[forwarded.message_id] = user_id
-        user_messages[info_msg.message_id] = user_id
 
     await update.message.reply_text("✅ سفارش ثبت شد")
 
-async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    admin_id = update.message.from_user.id
+# ================= ADMIN REPLY =================
 
+# ================= ADMIN REPLY =================
+
+async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    admin_user = update.message.from_user
+    admin_id = admin_user.id
+
+    # فقط ادمین‌ها بتونن ریپلای کنن
     if not is_admin(admin_id):
         return
 
+    # بررسی اینکه آیا روی پیامی ریپلای شده یا نه
     if not update.message.reply_to_message:
         return
 
     replied_id = update.message.reply_to_message.message_id
 
+    # پیدا کردن یوزر آیدی مشتری از دیکشنری پیام‌ها
     if replied_id not in user_messages:
         return
 
     target_user = user_messages[replied_id]
-    msg = update.message.text
+    msg_text = update.message.text
 
-    # ارسال برای مشتری
-    await context.bot.send_message(
-        chat_id=target_user,
-        text=f"📩 پاسخ ادمین:\n\n{msg}"
-    )
+    try:
+        # ۱. ارسال پیام برای مشتری
+        await context.bot.send_message(
+            chat_id=target_user,
+            text=f"📩 پاسخ ادمین:\n\n{msg_text}"
+        )
+        
+        # ۲. ارسال لاگ برای مالک (Owner)
+        # اگر خودِ مالک جواب داده بود، نیازی نیست دوباره برای خودش لاگ بره
+        if admin_id != OWNER_ID:
+            log_text = (
+                f"📝 **لاگ پیام ادمین**\n\n"
+                f"👤 ادمین: `{admin_id}`\n"
+                f"🎯 به کاربر: `{target_user}`\n"
+                f"💬 متن پیام:\n{msg_text}"
+            )
+            await context.bot.send_message(chat_id=OWNER_ID, text=log_text, parse_mode="Markdown")
+            
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطا در ارسال پیام: {e}")
 
-    # لاگ داخل بات
-    await context.bot.send_message(
-        chat_id=update.message.chat_id,
-        text=f"""📡 لاگ پیام
-
-👤 ادمین: {admin_id}
-🎯 کاربر: {target_user}
-
-💬 پیام:
-{msg}"""
-    )
+# ================= RUN =================
 
 app = ApplicationBuilder().token(TOKEN).build()
 
