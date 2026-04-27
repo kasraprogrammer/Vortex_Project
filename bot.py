@@ -1,3 +1,4 @@
+import sqlite3
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
@@ -13,6 +14,32 @@ user_data = {}
 user_messages = {}
 DIVIDER = "━━━━━━━━━━━━━━"
 
+# ================= DATABASE =================
+
+def init_db():
+    conn = sqlite3.connect('vortex_shop.db')
+    cursor = conn.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY)''')
+    conn.commit()
+    conn.close()
+
+def add_user(user_id):
+    conn = sqlite3.connect('vortex_shop.db')
+    cursor = conn.cursor()
+    cursor.execute('INSERT OR IGNORE INTO users (user_id) VALUES (?)', (user_id,))
+    conn.commit()
+    conn.close()
+
+def get_all_users():
+    conn = sqlite3.connect('vortex_shop.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id FROM users')
+    users = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return users
+
+init_db()
+
 # ================= FUNCTIONS =================
 
 def is_admin(user_id):
@@ -25,7 +52,7 @@ async def is_member(bot, user_id):
     except:
         return False
 
-# متن قوانین طبق درخواست شما
+# متن جدید قوانین شما
 RULES_TEXT = f"""
 <b>📜 قوانین و مقررات استفاده از سرویس</b>
 {DIVIDER}
@@ -50,16 +77,13 @@ RULES_TEXT = f"""
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
+    add_user(user_id)
     
     if not await is_member(context.bot, user_id):
-        keyboard = [
-            [InlineKeyboardButton("📢 عضویت در کانال", url=CHANNEL_LINK)],
-            [InlineKeyboardButton("✅ بررسی عضویت", callback_data="check_join")]
-        ]
-        await update.message.reply_text(
-            f"<b>⚠️ برای استفاده باید عضو کانال باشی:</b>\n\nلطفاً ابتدا در کانال ما عضو شده و سپس دکمه بررسی را بزنید.\n\n{DIVIDER}",
-            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
-        )
+        keyboard = [[InlineKeyboardButton("📢 عضویت در کانال", url=CHANNEL_LINK)],
+                    [InlineKeyboardButton("✅ بررسی عضویت", callback_data="check_join")]]
+        await update.message.reply_text(f"<b>⚠️ برای استفاده باید عضو کانال باشی:</b>\n\n{DIVIDER}",
+            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
         return
 
     keyboard = [[InlineKeyboardButton("✅ می‌پذیرم", callback_data="accept_rules")]]
@@ -67,9 +91,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    user_id = q.from_user.id
-    
-    if await is_member(context.bot, user_id):
+    if await is_member(context.bot, q.from_user.id):
         await q.answer("✅ عضویت تایید شد!")
         keyboard = [[InlineKeyboardButton("✅ می‌پذیرم", callback_data="accept_rules")]]
         await q.edit_message_text(RULES_TEXT, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -82,10 +104,7 @@ async def home(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("👨‍💻 پشتیبانی", url="https://t.me/VortexShop_Support"), InlineKeyboardButton("📢 کانال ما", url=CHANNEL_LINK)]
     ]
     text = f"<b>🏠 به Vortex Shop خوش آمدی</b>\n\n{DIVIDER}\nلطفاً برای ادامه انتخاب کنید:"
-    
-    if update.message:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-    elif update.callback_query:
+    if update.callback_query:
         await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -97,103 +116,71 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📦 5GB | 1,500T", callback_data="plan_5"), InlineKeyboardButton("📦 10GB | 3,000T", callback_data="plan_10")],
         [InlineKeyboardButton("🔙 برگشت به خانه", callback_data="home")]
     ]
-    await q.edit_message_text(
-        f"<b>⚡️ سرویس پرسرعت اختصاصی Vortex</b>\n{DIVIDER}\nحجم مورد نظر خود را انتخاب کنید:",
-        reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
-    )
+    await q.edit_message_text(f"<b>⚡️ سرویس Vortex</b>\n{DIVIDER}\nحجم انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
-    user_id = q.from_user.id
     plan = int(q.data.split("_")[1])
-    user_data[user_id] = {"plan": plan}
-    price = plan * 300
-
-    await q.edit_message_text(f"""
-<b>📦 فاکتور نهایی سفارش</b>
-{DIVIDER}
-✨ نوع سرویس: <code>Vortex Private</code>
-♾ حجم انتخابی: <code>{plan} گیگابایت</code>
-💵 مبلغ قابل پرداخت: <b>{price:,} تومان</b>
-
-💳 شماره کارت جهت واریز:
-<code>{CARD}</code>
-
-{DIVIDER}
-📸 <b>لطفاً پس از واریز، تصویر رسید را در همینجا ارسال کنید.</b>
-""", parse_mode="HTML")
+    user_data[q.from_user.id] = {"plan": plan}
+    await q.edit_message_text(f"<b>📦 فاکتور نهایی</b>\n{DIVIDER}\nحجم: {plan}GB\nقیمت: {plan*300:,}T\n\n💳 کارت: <code>{CARD}</code>\n\n📸 رسید را اینجا بفرستید.", parse_mode="HTML")
 
 async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    
-    if is_admin(user_id):
-        return
+    if is_admin(user_id): return
+    plan = user_data.get(user_id, {}).get("plan", 0)
+    if plan == 0: return
 
-    order_info = user_data.get(user_id, {})
-    plan = order_info.get("plan", 0)
-
-    if plan == 0:
-        await update.message.reply_text("❌ ابتدا یک پلن انتخاب کنید.")
-        return
-
-    price = plan * 300
     for admin in ADMIN_IDS:
         try:
             sent = await context.bot.forward_message(chat_id=admin, from_chat_id=update.message.chat_id, message_id=update.message.message_id)
             user_messages[sent.message_id] = user_id
-            await context.bot.send_message(
-                chat_id=admin,
-                text=f"<b>🧾 سفارش جدید رسید!</b>\n\n👤 کاربر: <code>{user_id}</code>\n📦 پلن: {plan}GB\n💵 قیمت: {price:,}T\n\n⚠️ برای پاسخ، روی عکس بالا ریپلای کنید.",
-                parse_mode="HTML"
-            )
-        except:
-            continue
-            
-    await update.message.reply_text("✅ <b>رسید شما دریافت شد.</b>\n\nمنتظر تایید مدیریت بمانید.", parse_mode="HTML")
+            await context.bot.send_message(chat_id=admin, text=f"🧾 جدید: {user_id}\n📦 {plan}GB\n⚠️ ریپلای روی عکس برای پاسخ.", parse_mode="HTML")
+        except: continue
+    await update.message.reply_text("✅ رسید دریافت شد.")
 
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_id = update.message.from_user.id
+    if not is_admin(admin_id) or not update.message.reply_to_message: return
     
-    if not is_admin(admin_id) or not update.message.reply_to_message:
-        return
-
     replied_id = update.message.reply_to_message.message_id
-    
     if replied_id in user_messages:
         target_user = user_messages[replied_id]
         msg_text = update.message.text
-        
         try:
-            # ۱. ارسال پاسخ به مشتری
             await context.bot.send_message(chat_id=target_user, text=f"<b>📩 پاسخ پشتیبانی:</b>\n\n{msg_text}", parse_mode="HTML")
-            
-            # ۲. ارسال گزارش برای OWNER_ID (اگر ادمین خودِ مالک نبود)
+            # گزارش به شما (Owner)
             if admin_id != OWNER_ID:
-                await context.bot.send_message(
-                    chat_id=OWNER_ID,
-                    text=f"<b>👮‍♂️ گزارش عملکرد ادمین</b>\n{DIVIDER}\n👤 ادمین: <code>{admin_id}</code>\n🎯 به مشتری: <code>{target_user}</code>\n💬 متن پاسخ: {msg_text}",
-                    parse_mode="HTML"
-                )
-            
-            await update.message.reply_text("✅ پیام با موفقیت ارسال و گزارش شد.")
+                await context.bot.send_message(chat_id=OWNER_ID, text=f"👮‍♂️ گزارش ادمین {admin_id} به {target_user}:\n{msg_text}")
+            await update.message.reply_text("✅ ارسال شد.")
         except Exception as e:
-            await update.message.reply_text(f"❌ خطا در ارسال: {e}")
-    else:
-        if is_admin(admin_id):
-            await update.message.reply_text("❌ خطا: رسید معتبر یافت نشد. فقط روی خود عکس رسید ریپلای کنید.")
+            await update.message.reply_text(f"❌ خطا: {e}")
+
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.from_user.id != OWNER_ID: return
+    if not context.args:
+        await update.message.reply_text("❌ بنویس: /send متن پیام")
+        return
+    text = " ".join(context.args)
+    users = get_all_users()
+    done, fail = 0, 0
+    for uid in users:
+        try:
+            await context.bot.send_message(chat_id=uid, text=f"📢 <b>اطلاعیه فروشگاه</b>\n\n{text}", parse_mode="HTML")
+            done += 1
+        except: fail += 1
+    await update.message.reply_text(f"✅ پایان ارسال.\nموفق: {done}\nناموفق: {fail}")
 
 # ================= RUN =================
 
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("send", broadcast))
 app.add_handler(CallbackQueryHandler(check_join, pattern="check_join"))
-app.add_handler(CallbackQueryHandler(home, pattern="accept_rules"))
+app.add_handler(CallbackQueryHandler(home, pattern="accept_rules|home"))
 app.add_handler(CallbackQueryHandler(plans, pattern="go_plans"))
 app.add_handler(CallbackQueryHandler(order, pattern="plan_"))
-app.add_handler(CallbackQueryHandler(home, pattern="home"))
-
 app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, receipt))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_reply))
 
