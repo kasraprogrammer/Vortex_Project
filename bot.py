@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
-# ⚠️ تنظیمات توکن و شناسه‌ها
+# ⚠️ تنظیمات اصلی
 TOKEN = "8653861753:AAEUuafpUZhmx_INOqR1oDdRgmtohkBaiZo"
 ADMIN_IDS = [5231145229, 6225624558]
 OWNER_ID = 5231145229
@@ -9,11 +9,8 @@ CHANNEL_USERNAME = "@Vortexsshop"
 CHANNEL_LINK = "https://t.me/Vortexsshop"
 CARD = "6219-8618-0647-8813"
 
-# دیتابیس‌های موقت (در صورت ری‌استارت پاک می‌شوند)
 user_data = {}
 user_messages = {}
-
-# جداکننده گرافیکی برای متن‌ها
 DIVIDER = "━━━━━━━━━━━━━━"
 
 # ================= FUNCTIONS =================
@@ -28,25 +25,8 @@ async def is_member(bot, user_id):
     except:
         return False
 
-# ================= HANDLERS =================
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-    
-    # چک کردن عضویت در کانال
-    if not await is_member(context.bot, user_id):
-        keyboard = [
-            [InlineKeyboardButton("📢 عضویت در کانال", url=CHANNEL_LINK)],
-            [InlineKeyboardButton("✅ بررسی عضویت", callback_data="check_join")]
-        ]
-        await update.message.reply_text(
-            f"<b>⚠️ برای استفاده باید عضو کانال باشی:</b>\n\nلطفاً ابتدا در کانال ما عضو شده و سپس دکمه بررسی را بزنید.\n\n{DIVIDER}",
-            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
-        )
-        return
-
-    # نمایش متن کامل قوانین طبق درخواست شما
-    rules_text = f"""
+# متن قوانین برای استفاده مجدد در توابع مختلف
+RULES_TEXT = f"""
 <b>📜 قوانین و مقررات استفاده از سرویس</b>
 {DIVIDER}
 
@@ -65,42 +45,60 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {DIVIDER}
 با زدن دکمه <b>"✅ می‌پذیرم"</b> تأیید می‌کنی که قوانین را خوانده‌ای.
 """
+
+# ================= HANDLERS =================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    
+    if not await is_member(context.bot, user_id):
+        keyboard = [
+            [InlineKeyboardButton("📢 عضویت در کانال", url=CHANNEL_LINK)],
+            [InlineKeyboardButton("✅ بررسی عضویت", callback_data="check_join")]
+        ]
+        await update.message.reply_text(
+            f"<b>⚠️ برای استفاده باید عضو کانال باشی:</b>\n\nلطفاً ابتدا در کانال ما عضو شده و سپس دکمه بررسی را بزنید.\n\n{DIVIDER}",
+            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
+        )
+        return
+
     keyboard = [[InlineKeyboardButton("✅ می‌پذیرم", callback_data="accept_rules")]]
-    await update.message.reply_text(rules_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    await update.message.reply_text(RULES_TEXT, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    if await is_member(context.bot, q.from_user.id):
-        await q.answer("✅ خوش آمدید!")
-        # بعد از تایید عضویت، قوانین نمایش داده شود
-        await start(update, context)
+    user_id = q.from_user.id
+    
+    if await is_member(context.bot, user_id):
+        await q.answer("✅ عضویت تایید شد!")
+        # بعد از تایید، متن قوانین را جایگزین پیام قبلی می‌کند
+        keyboard = [[InlineKeyboardButton("✅ می‌پذیرم", callback_data="accept_rules")]]
+        await q.edit_message_text(RULES_TEXT, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     else:
         await q.answer("❌ هنوز عضو کانال نشدی!", show_alert=True)
 
 async def home(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # این تابع برای دکمه "می‌پذیرم" و بازگشت به خانه استفاده می‌شود
     keyboard = [
         [InlineKeyboardButton("🚀 شروع خرید", callback_data="go_plans")],
-        [InlineKeyboardButton("👨‍💻 پشتیبانی", url="https://t.me/VortexShop_Support"), InlineKeyboardButton("📢 کانال ما", url=CHANNEL_LINK)]
+        [InlineKeyboardButton("👨‍💻 پشتیبانی", url="https://t.me/Vortex_Admin"), InlineKeyboardButton("📢 کانال ما", url=CHANNEL_LINK)]
     ]
     text = f"<b>🏠 به Vortex Shop خوش آمدی</b>\n\n{DIVIDER}\nلطفاً برای ادامه انتخاب کنید:"
     
     if update.message:
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-    else:
+    elif update.callback_query:
         await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
-    
-    # چیدمان دکمه‌ها به صورت جفتی
     keyboard = [
         [InlineKeyboardButton("📦 1GB | 300T", callback_data="plan_1"), InlineKeyboardButton("📦 2GB | 600T", callback_data="plan_2")],
         [InlineKeyboardButton("📦 3GB | 900T", callback_data="plan_3"), InlineKeyboardButton("📦 4GB | 1,200T", callback_data="plan_4")],
         [InlineKeyboardButton("📦 5GB | 1,500T", callback_data="plan_5"), InlineKeyboardButton("📦 10GB | 3,000T", callback_data="plan_10")],
         [InlineKeyboardButton("🔙 برگشت به خانه", callback_data="home")]
     ]
-    
     await q.edit_message_text(
         f"<b>⚡️ سرویس پرسرعت اختصاصی Vortex</b>\n{DIVIDER}\nحجم مورد نظر خود را انتخاب کنید:",
         reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
@@ -109,7 +107,6 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
-    
     user_id = q.from_user.id
     plan = int(q.data.split("_")[1])
     user_data[user_id] = {"plan": plan}
@@ -140,17 +137,13 @@ async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     price = plan * 300
     for admin in ADMIN_IDS:
-        # فوروارد عکس رسید
         sent = await context.bot.forward_message(chat_id=admin, from_chat_id=update.message.chat_id, message_id=update.message.message_id)
         user_messages[sent.message_id] = user_id
-        
-        # اطلاع‌رسانی به ادمین
         await context.bot.send_message(
             chat_id=admin,
-            text=f"<b>🧾 سفارش جدید رسید!</b>\n\n👤 کاربر: <code>{user_id}</code>\n📦 پلن: {plan}GB\n💵 قیمت: {price:,}T\n\n👆 رسید بالا رو چک کن.",
+            text=f"<b>🧾 سفارش جدید رسید!</b>\n\n👤 کاربر: <code>{user_id}</code>\n📦 پلن: {plan}GB\n💵 قیمت: {price:,}T",
             parse_mode="HTML"
         )
-
     await update.message.reply_text("✅ <b>رسید شما دریافت شد.</b>\n\nمنتظر تایید مدیریت بمانید.", parse_mode="HTML")
 
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -166,18 +159,17 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg_text = update.message.text
     try:
         await context.bot.send_message(chat_id=target_user, text=f"<b>📩 پاسخ پشتیبانی:</b>\n\n{msg_text}", parse_mode="HTML")
-        await update.message.reply_text("✅ پیام به کاربر ارسال شد.")
+        await update.message.reply_text("✅ ارسال شد.")
     except Exception as e:
-        await update.message.reply_text(f"❌ خطا در ارسال: {e}")
+        await update.message.reply_text(f"❌ خطا: {e}")
 
 # ================= RUN =================
 
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("home", home))
 app.add_handler(CallbackQueryHandler(check_join, pattern="check_join"))
-app.add_handler(CallbackQueryHandler(home, pattern="accept_rules")) # بعد از پذیرش قوانین میره به هوم
+app.add_handler(CallbackQueryHandler(home, pattern="accept_rules")) # اصلاح شده
 app.add_handler(CallbackQueryHandler(plans, pattern="go_plans"))
 app.add_handler(CallbackQueryHandler(order, pattern="plan_"))
 app.add_handler(CallbackQueryHandler(home, pattern="home"))
@@ -185,5 +177,5 @@ app.add_handler(CallbackQueryHandler(home, pattern="home"))
 app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, receipt))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_reply))
 
-print("Vortex Shop Bot is now Live!")
+print("Vortex Shop is running...")
 app.run_polling()
