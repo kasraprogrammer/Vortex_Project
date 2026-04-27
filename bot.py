@@ -81,7 +81,7 @@ async def home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # این تابع برای دکمه "می‌پذیرم" و بازگشت به خانه استفاده می‌شود
     keyboard = [
         [InlineKeyboardButton("🚀 شروع خرید", callback_data="go_plans")],
-        [InlineKeyboardButton("👨‍💻 پشتیبانی", url="https://t.me/Vortex_Admin"), InlineKeyboardButton("📢 کانال ما", url=CHANNEL_LINK)]
+        [InlineKeyboardButton("👨‍💻 پشتیبانی", url="https://t.me/VortexShop_Support"), InlineKeyboardButton("📢 کانال ما", url=CHANNEL_LINK)]
     ]
     text = f"<b>🏠 به Vortex Shop خوش آمدی</b>\n\n{DIVIDER}\nلطفاً برای ادامه انتخاب کنید:"
     
