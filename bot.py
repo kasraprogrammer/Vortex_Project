@@ -25,7 +25,7 @@ async def is_member(bot, user_id):
     except:
         return False
 
-# متن قوانین برای استفاده مجدد در توابع مختلف
+# متن قوانین طبق درخواست شما
 RULES_TEXT = f"""
 <b>📜 قوانین و مقررات استفاده از سرویس</b>
 {DIVIDER}
@@ -71,14 +71,12 @@ async def check_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if await is_member(context.bot, user_id):
         await q.answer("✅ عضویت تایید شد!")
-        # بعد از تایید، متن قوانین را جایگزین پیام قبلی می‌کند
         keyboard = [[InlineKeyboardButton("✅ می‌پذیرم", callback_data="accept_rules")]]
         await q.edit_message_text(RULES_TEXT, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     else:
         await q.answer("❌ هنوز عضو کانال نشدی!", show_alert=True)
 
 async def home(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # این تابع برای دکمه "می‌پذیرم" و بازگشت به خانه استفاده می‌شود
     keyboard = [
         [InlineKeyboardButton("🚀 شروع خرید", callback_data="go_plans")],
         [InlineKeyboardButton("👨‍💻 پشتیبانی", url="https://t.me/VortexShop_Support"), InlineKeyboardButton("📢 کانال ما", url=CHANNEL_LINK)]
@@ -128,6 +126,10 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
+    
+    if is_admin(user_id):
+        return
+
     order_info = user_data.get(user_id, {})
     plan = order_info.get("plan", 0)
 
@@ -137,31 +139,49 @@ async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     price = plan * 300
     for admin in ADMIN_IDS:
-        sent = await context.bot.forward_message(chat_id=admin, from_chat_id=update.message.chat_id, message_id=update.message.message_id)
-        user_messages[sent.message_id] = user_id
-        await context.bot.send_message(
-            chat_id=admin,
-            text=f"<b>🧾 سفارش جدید رسید!</b>\n\n👤 کاربر: <code>{user_id}</code>\n📦 پلن: {plan}GB\n💵 قیمت: {price:,}T",
-            parse_mode="HTML"
-        )
+        try:
+            sent = await context.bot.forward_message(chat_id=admin, from_chat_id=update.message.chat_id, message_id=update.message.message_id)
+            user_messages[sent.message_id] = user_id
+            await context.bot.send_message(
+                chat_id=admin,
+                text=f"<b>🧾 سفارش جدید رسید!</b>\n\n👤 کاربر: <code>{user_id}</code>\n📦 پلن: {plan}GB\n💵 قیمت: {price:,}T\n\n⚠️ برای پاسخ، روی عکس بالا ریپلای کنید.",
+                parse_mode="HTML"
+            )
+        except:
+            continue
+            
     await update.message.reply_text("✅ <b>رسید شما دریافت شد.</b>\n\nمنتظر تایید مدیریت بمانید.", parse_mode="HTML")
 
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_id = update.message.from_user.id
+    
     if not is_admin(admin_id) or not update.message.reply_to_message:
         return
 
     replied_id = update.message.reply_to_message.message_id
-    if replied_id not in user_messages:
-        return
-
-    target_user = user_messages[replied_id]
-    msg_text = update.message.text
-    try:
-        await context.bot.send_message(chat_id=target_user, text=f"<b>📩 پاسخ پشتیبانی:</b>\n\n{msg_text}", parse_mode="HTML")
-        await update.message.reply_text("✅ ارسال شد.")
-    except Exception as e:
-        await update.message.reply_text(f"❌ خطا: {e}")
+    
+    if replied_id in user_messages:
+        target_user = user_messages[replied_id]
+        msg_text = update.message.text
+        
+        try:
+            # ۱. ارسال پاسخ به مشتری
+            await context.bot.send_message(chat_id=target_user, text=f"<b>📩 پاسخ پشتیبانی:</b>\n\n{msg_text}", parse_mode="HTML")
+            
+            # ۲. ارسال گزارش برای OWNER_ID (اگر ادمین خودِ مالک نبود)
+            if admin_id != OWNER_ID:
+                await context.bot.send_message(
+                    chat_id=OWNER_ID,
+                    text=f"<b>👮‍♂️ گزارش عملکرد ادمین</b>\n{DIVIDER}\n👤 ادمین: <code>{admin_id}</code>\n🎯 به مشتری: <code>{target_user}</code>\n💬 متن پاسخ: {msg_text}",
+                    parse_mode="HTML"
+                )
+            
+            await update.message.reply_text("✅ پیام با موفقیت ارسال و گزارش شد.")
+        except Exception as e:
+            await update.message.reply_text(f"❌ خطا در ارسال: {e}")
+    else:
+        if is_admin(admin_id):
+            await update.message.reply_text("❌ خطا: رسید معتبر یافت نشد. فقط روی خود عکس رسید ریپلای کنید.")
 
 # ================= RUN =================
 
@@ -169,7 +189,7 @@ app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CallbackQueryHandler(check_join, pattern="check_join"))
-app.add_handler(CallbackQueryHandler(home, pattern="accept_rules")) # اصلاح شده
+app.add_handler(CallbackQueryHandler(home, pattern="accept_rules"))
 app.add_handler(CallbackQueryHandler(plans, pattern="go_plans"))
 app.add_handler(CallbackQueryHandler(order, pattern="plan_"))
 app.add_handler(CallbackQueryHandler(home, pattern="home"))
