@@ -111,9 +111,9 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
     keyboard = [
-        [InlineKeyboardButton("📦 1GB | 300T", callback_data="plan_1"), InlineKeyboardButton("📦 2GB | 600T", callback_data="plan_2")],
-        [InlineKeyboardButton("📦 3GB | 900T", callback_data="plan_3"), InlineKeyboardButton("📦 4GB | 1,200T", callback_data="plan_4")],
-        [InlineKeyboardButton("📦 5GB | 1,500T", callback_data="plan_5"), InlineKeyboardButton("📦 10GB | 3,000T", callback_data="plan_10")],
+        [InlineKeyboardButton("📦 1GB | 345T", callback_data="plan_1"), InlineKeyboardButton("📦 2GB | 690T", callback_data="plan_2")],
+        [InlineKeyboardButton("📦 3GB | 1,035T", callback_data="plan_3"), InlineKeyboardButton("📦 4GB | 1,380T", callback_data="plan_4")],
+        [InlineKeyboardButton("📦 5GB | 1,725T", callback_data="plan_5"), InlineKeyboardButton("📦 10GB | 3,450T", callback_data="plan_10")],
         [InlineKeyboardButton("🔙 برگشت به خانه", callback_data="home")]
     ]
     await q.edit_message_text(f"<b>⚡️ سرویس Vortex</b>\n{DIVIDER}\nحجم انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -123,7 +123,7 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.answer()
     plan = int(q.data.split("_")[1])
     user_data[q.from_user.id] = {"plan": plan}
-    await q.edit_message_text(f"<b>📦 فاکتور نهایی</b>\n{DIVIDER}\nحجم: {plan}GB\nقیمت: {plan*300:,}T\n\n💳 کارت: <code>{CARD}</code>\n\n📸 رسید را اینجا بفرستید.", parse_mode="HTML")
+    await q.edit_message_text(f"<b>📦 فاکتور نهایی</b>\n{DIVIDER}\nحجم: {plan}GB\nقیمت: {plan*345:,}T\n\n💳 کارت: <code>{CARD}</code>\n\n📸 رسید را اینجا بفرستید.", parse_mode="HTML")
 
 async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
