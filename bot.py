@@ -8,7 +8,7 @@ ADMIN_IDS = [5231145229, 6225624558]
 OWNER_ID = 5231145229
 CHANNEL_USERNAME = "@Vortexsshop"
 CHANNEL_LINK = "https://t.me/Vortexsshop"
-CARD = "6219-8618-0647-8813"
+CARD = "6219861806478813"
 
 user_data = {}
 user_messages = {}
