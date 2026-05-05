@@ -6,8 +6,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 TOKEN = "8653861753:AAEUuafpUZhmx_INOqR1oDdRgmtohkBaiZo"
 ADMIN_IDS = [5231145229, 6225624558]
 OWNER_ID = 5231145229
-CHANNEL_USERNAME = "@Vortexsshop"
-CHANNEL_LINK = "https://t.me/Vortexsshop"
+CHANNEL_USERNAME = "@Silence_shopnft"
+CHANNEL_LINK = "https://t.me/Silence_shopnft"
 CARD = "6219861806478813"
 
 # دیتای قیمت‌ها (تومان)
@@ -115,7 +115,7 @@ async def select_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
     keyboard = [
-        [InlineKeyboardButton("⚡️ سرویس Vortex (285T)", callback_data="loc_vortex")],
+        [InlineKeyboardButton("⚡️ سرویس Silence (285T)", callback_data="loc_vortex")],
         [InlineKeyboardButton("🇳🇱 سرویس هلند (380T)", callback_data="loc_netherlands")],
         [InlineKeyboardButton("🇹🇷 سرویس ترکیه (380T)", callback_data="loc_turkey")],
         [InlineKeyboardButton("🔙 برگشت", callback_data="home")]
