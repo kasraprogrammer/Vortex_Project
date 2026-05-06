@@ -4,7 +4,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 
 # ⚠️ تنظیمات اصلی
 TOKEN = "8653861753:AAEUuafpUZhmx_INOqR1oDdRgmtohkBaiZo"
-ADMIN_IDS = [5231145229, 6225624558]
+# آیدی جدید به لیست زیر اضافه شد
+ADMIN_IDS = [5231145229, 6225624558, 7065220458] 
 OWNER_ID = 5231145229
 CHANNEL_USERNAME = "@Silence_shopnft"
 CHANNEL_LINK = "https://t.me/Silence_shopnft"
@@ -173,6 +174,7 @@ async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_id = update.message.from_user.id
+    # فقط ادمین‌ها و کسانی که ریپلای زده‌اند
     if not is_admin(admin_id) or not update.message.reply_to_message: return
     
     replied_id = update.message.reply_to_message.message_id
@@ -180,10 +182,21 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_user = user_messages[replied_id]
         msg_text = update.message.text
         try:
+            # ارسال پیام به مشتری
             await context.bot.send_message(chat_id=target_user, text=f"<b>📩 پاسخ پشتیبانی:</b>\n\n{msg_text}", parse_mode="HTML")
+            
+            # اگر ادمین پاسخ‌دهنده، شخصِ شما (مالک) نیست، یک گزارش برای شما بیاید
             if admin_id != OWNER_ID:
-                await context.bot.send_message(chat_id=OWNER_ID, text=f"👮‍♂️ گزارش ادمین {admin_id} به {target_user}:\n{msg_text}")
-            await update.message.reply_text("✅ ارسال شد.")
+                report_text = (
+                    f"👮‍♂️ <b>گزارش فعالیت ادمین</b>\n"
+                    f"{DIVIDER}\n"
+                    f"👤 ادمین: {admin_id}\n"
+                    f"👤 مشتری: {target_user}\n"
+                    f"💬 متن پاسخ: \n{msg_text}"
+                )
+                await context.bot.send_message(chat_id=OWNER_ID, text=report_text, parse_mode="HTML")
+            
+            await update.message.reply_text("✅ پاسخ شما با موفقیت برای مشتری ارسال و گزارش شد.")
         except Exception as e:
             await update.message.reply_text(f"❌ خطا در ارسال: {e}")
 
