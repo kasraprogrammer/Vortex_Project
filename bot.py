@@ -9,7 +9,7 @@ ADMIN_IDS = [5231145229, 6225624558, 7065220458]
 OWNER_ID = 5231145229
 CHANNEL_USERNAME = "@Silence_shopnft"
 CHANNEL_LINK = "https://t.me/Silence_shopnft"
-CARD = "6219861806478813"
+CARD = "6037998269068226"
 
 # دیتای قیمت‌ها (تومان)
 PRICES = {
