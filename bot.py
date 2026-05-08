@@ -4,7 +4,6 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 
 # ⚠️ تنظیمات اصلی
 TOKEN = "8653861753:AAEUuafpUZhmx_INOqR1oDdRgmtohkBaiZo"
-# آیدی جدید به لیست زیر اضافه شد
 ADMIN_IDS = [5231145229, 6225624558, 7065220458] 
 OWNER_ID = 5231145229
 CHANNEL_USERNAME = "@Silence_shopnft"
@@ -14,8 +13,7 @@ CARD = "6037998269068226"
 # دیتای قیمت‌ها (تومان)
 PRICES = {
     "vortex": 285,
-    "netherlands": 380,
-    "turkey": 380
+    "turkey": 385
 }
 
 user_data = {}
@@ -116,9 +114,8 @@ async def select_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
     keyboard = [
-        [InlineKeyboardButton("⚡️ سرویس Silence (285T)", callback_data="loc_vortex")],
-        [InlineKeyboardButton("🇳🇱 سرویس هلند (380T)", callback_data="loc_netherlands")],
-        [InlineKeyboardButton("🇹🇷 سرویس ترکیه (380T)", callback_data="loc_turkey")],
+        [InlineKeyboardButton(f"⚡️ سرویس Silence ({PRICES['vortex']}T)", callback_data="loc_vortex")],
+        [InlineKeyboardButton(f"🇹🇷 سرویس ترکیه ({PRICES['turkey']}T)", callback_data="loc_turkey")],
         [InlineKeyboardButton("🔙 برگشت", callback_data="home")]
     ]
     await q.edit_message_text(f"<b>🌐 انتخاب لوکیشن سرویس</b>\n{DIVIDER}\nلطفاً لوکیشن مورد نظر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -129,15 +126,26 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     loc = q.data.split("_")[1]
     price = PRICES[loc]
     
-    keyboard = [
-        [InlineKeyboardButton(f"📦 1GB | {price}T", callback_data=f"plan_{loc}_1"), InlineKeyboardButton(f"📦 2GB | {price*2}T", callback_data=f"plan_{loc}_2")],
-        [InlineKeyboardButton(f"📦 3GB | {price*3}T", callback_data=f"plan_{loc}_3"), InlineKeyboardButton(f"📦 4GB | {price*4}T", callback_data=f"plan_{loc}_4")],
-        [InlineKeyboardButton(f"📦 5GB | {price*5}T", callback_data=f"plan_{loc}_5"), InlineKeyboardButton(f"📦 10GB | {price*10}T", callback_data=f"plan_{loc}_10")],
-        [InlineKeyboardButton("🔙 برگشت به لوکیشن‌ها", callback_data="go_locations")]
-    ]
+    # تنظیم محدوده حجم‌ها طبق درخواست شما
+    if loc == "vortex":
+        plan_list = list(range(1, 11)) # از ۱ تا ۱۰ گیگ
+    else: # ترکیه
+        plan_list = list(range(15, 31)) # از ۱۵ تا ۳۰ گیگ
+        
+    keyboard = []
+    # نمایش دکمه‌ها در ردیف‌های ۳ تایی برای جلوگیری از طولانی شدن بیش از حد منو
+    for i in range(0, len(plan_list), 3):
+        row = []
+        for j in range(3):
+            if i + j < len(plan_list):
+                p = plan_list[i + j]
+                row.append(InlineKeyboardButton(f"{p}GB", callback_data=f"plan_{loc}_{p}"))
+        keyboard.append(row)
     
-    loc_display = "Vortex" if loc == "vortex" else ("هلند 🇳🇱" if loc == "netherlands" else "ترکیه 🇹🇷")
-    await q.edit_message_text(f"<b>⚡️ سرویس {loc_display}</b>\n{DIVIDER}\nحجم مورد نظر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    keyboard.append([InlineKeyboardButton("🔙 برگشت به لوکیشن‌ها", callback_data="go_locations")])
+    
+    loc_display = "Silence" if loc == "vortex" else "ترکیه 🇹🇷"
+    await q.edit_message_text(f"<b>⚡️ سرویس {loc_display} (گیگی {price} تومان)</b>\n{DIVIDER}\nحجم مورد نظر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -148,7 +156,7 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_price = plan * PRICES[loc]
     
     user_data[q.from_user.id] = {"plan": plan, "loc": loc}
-    loc_display = "Vortex" if loc == "vortex" else ("هلند 🇳🇱" if loc == "netherlands" else "ترکیه 🇹🇷")
+    loc_display = "Silence" if loc == "vortex" else "ترکیه 🇹🇷"
     
     await q.edit_message_text(f"<b>📦 فاکتور نهایی</b>\n{DIVIDER}\n🌍 لوکیشن: {loc_display}\n📊 حجم: {plan}GB\n💰 قیمت: {total_price:,} تومان\n\n💳 کارت: <code>{CARD}</code>\n\n📸 رسید را اینجا بفرستید.", parse_mode="HTML")
 
@@ -162,7 +170,7 @@ async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if plan == 0: return
 
-    loc_display = "Vortex" if loc == "vortex" else ("هلند 🇳🇱" if loc == "netherlands" else "ترکیه 🇹🇷")
+    loc_display = "Silence" if loc == "vortex" else "ترکیه 🇹🇷"
 
     for admin in ADMIN_IDS:
         try:
@@ -174,7 +182,6 @@ async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_id = update.message.from_user.id
-    # فقط ادمین‌ها و کسانی که ریپلای زده‌اند
     if not is_admin(admin_id) or not update.message.reply_to_message: return
     
     replied_id = update.message.reply_to_message.message_id
@@ -182,10 +189,7 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_user = user_messages[replied_id]
         msg_text = update.message.text
         try:
-            # ارسال پیام به مشتری
             await context.bot.send_message(chat_id=target_user, text=f"<b>📩 پاسخ پشتیبانی:</b>\n\n{msg_text}", parse_mode="HTML")
-            
-            # اگر ادمین پاسخ‌دهنده، شخصِ شما (مالک) نیست، یک گزارش برای شما بیاید
             if admin_id != OWNER_ID:
                 report_text = (
                     f"👮‍♂️ <b>گزارش فعالیت ادمین</b>\n"
