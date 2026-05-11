@@ -12,8 +12,8 @@ CARD = "6037998269068226"
 
 # دیتای قیمت‌ها (تومان)
 PRICES = {
-    "vortex": 285,
-    "turkey": 385
+    "vortex": 228,
+    "turkey": 170
 }
 
 user_data = {}
@@ -115,7 +115,7 @@ async def select_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.answer()
     keyboard = [
         [InlineKeyboardButton(f"⚡️ سرویس Silence ({PRICES['vortex']}T)", callback_data="loc_vortex")],
-        [InlineKeyboardButton(f"🇹🇷 سرویس ترکیه ({PRICES['turkey']}T)", callback_data="loc_turkey")],
+        [InlineKeyboardButton(f"NL سرویس هلند ({PRICES['turkey']}T)", callback_data="loc_turkey")],
         [InlineKeyboardButton("🔙 برگشت", callback_data="home")]
     ]
     await q.edit_message_text(f"<b>🌐 انتخاب لوکیشن سرویس</b>\n{DIVIDER}\nلطفاً لوکیشن مورد نظر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
