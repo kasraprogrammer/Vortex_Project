@@ -10,10 +10,10 @@ CHANNEL_USERNAME = "@Silence_shopnft"
 CHANNEL_LINK = "https://t.me/Silence_shopnft"
 CARD = "6037998269068226"
 
-# دیتای قیمت‌ها (تومان)
+# دیتای قیمت‌ها (تومان) - قیمت هلند به ۱۷۰ تغییر یافت
 PRICES = {
     "vortex": 228,
-    "turkey": 170
+    "netherlands": 170
 }
 
 user_data = {}
@@ -115,7 +115,7 @@ async def select_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.answer()
     keyboard = [
         [InlineKeyboardButton(f"⚡️ سرویس Silence ({PRICES['vortex']}T)", callback_data="loc_vortex")],
-        [InlineKeyboardButton(f"NL سرویس هلند ({PRICES['turkey']}T)", callback_data="loc_turkey")],
+        [InlineKeyboardButton(f"🇳🇱 سرویس هلند ({PRICES['netherlands']}T)", callback_data="loc_netherlands")],
         [InlineKeyboardButton("🔙 برگشت", callback_data="home")]
     ]
     await q.edit_message_text(f"<b>🌐 انتخاب لوکیشن سرویس</b>\n{DIVIDER}\nلطفاً لوکیشن مورد نظر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -126,14 +126,13 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     loc = q.data.split("_")[1]
     price = PRICES[loc]
     
-    # تنظیم محدوده حجم‌ها طبق درخواست شما
+    # تنظیم محدوده حجم‌ها (هلند ۱ تا ۱۵ گیگ)
     if loc == "vortex":
-        plan_list = list(range(1, 11)) # از ۱ تا ۱۰ گیگ
-    else: # ترکیه
-        plan_list = list(range(15, 31)) # از ۱۵ تا ۳۰ گیگ
+        plan_list = list(range(1, 11)) # ۱ تا ۱۰ گیگ
+    else: # netherlands
+        plan_list = list(range(1, 16)) # ۱ تا ۱۵ گیگ
         
     keyboard = []
-    # نمایش دکمه‌ها در ردیف‌های ۳ تایی برای جلوگیری از طولانی شدن بیش از حد منو
     for i in range(0, len(plan_list), 3):
         row = []
         for j in range(3):
@@ -144,7 +143,7 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard.append([InlineKeyboardButton("🔙 برگشت به لوکیشن‌ها", callback_data="go_locations")])
     
-    loc_display = "Silence" if loc == "vortex" else "ترکیه 🇹🇷"
+    loc_display = "Silence" if loc == "vortex" else "هلند 🇳🇱"
     await q.edit_message_text(f"<b>⚡️ سرویس {loc_display} (گیگی {price} تومان)</b>\n{DIVIDER}\nحجم مورد نظر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -156,7 +155,7 @@ async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_price = plan * PRICES[loc]
     
     user_data[q.from_user.id] = {"plan": plan, "loc": loc}
-    loc_display = "Silence" if loc == "vortex" else "ترکیه 🇹🇷"
+    loc_display = "Silence" if loc == "vortex" else "هلند 🇳🇱"
     
     await q.edit_message_text(f"<b>📦 فاکتور نهایی</b>\n{DIVIDER}\n🌍 لوکیشن: {loc_display}\n📊 حجم: {plan}GB\n💰 قیمت: {total_price:,} تومان\n\n💳 کارت: <code>{CARD}</code>\n\n📸 رسید را اینجا بفرستید.", parse_mode="HTML")
 
@@ -170,7 +169,7 @@ async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if plan == 0: return
 
-    loc_display = "Silence" if loc == "vortex" else "ترکیه 🇹🇷"
+    loc_display = "Silence" if loc == "vortex" else "هلند 🇳🇱"
 
     for admin in ADMIN_IDS:
         try:
