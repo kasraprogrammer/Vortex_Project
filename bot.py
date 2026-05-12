@@ -13,7 +13,7 @@ CARD = "6037998269068226"
 # دیتای قیمت‌ها (تومان) - قیمت هلند به ۱۷۰ تغییر یافت
 PRICES = {
     "vortex": 228,
-    "netherlands": 170
+    "netherlands": 279
 }
 
 user_data = {}
