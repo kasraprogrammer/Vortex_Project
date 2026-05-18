@@ -4,7 +4,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 
 # ⚠️ تنظیمات اصلی
 TOKEN = "8653861753:AAEUuafpUZhmx_INOqR1oDdRgmtohkBaiZo"
-ADMIN_IDS = [5231145229, 6225624558, 7065220458] 
+ADMIN_IDS = [5231145229, 6225624558] 
 OWNER_ID = 5231145229
 CHANNEL_USERNAME = "@Silence_shopnft"
 CHANNEL_LINK = "https://t.me/Silence_shopnft"
