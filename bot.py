@@ -10,10 +10,11 @@ CHANNEL_USERNAME = "@Silence_shopnft"
 CHANNEL_LINK = "https://t.me/Silence_shopnft"
 CARD = "6219861806478813"
 
-# دیتای قیمت‌ها (تومان) - قیمت هلند به ۱۷۰ تغییر یافت
+# دیتای قیمت‌ها (تومان) - قیمت سرویس ۴ لوکیشن گیگی ۲۱۰ تومان ست شد
 PRICES = {
     "vortex": 210,
-    "netherlands": 279
+    "netherlands": 279,
+    "four_locations": 210  # سرویس جدید چهار لوکیشن
 }
 
 user_data = {}
@@ -57,6 +58,15 @@ async def is_member(bot, user_id):
         return member.status in ["member", "administrator", "creator"]
     except:
         return False
+
+# تبدیل کدهای لوکیشن به نام فارسی جهت نمایش در فاکتور
+def get_loc_display(loc_code):
+    mapping = {
+        "vortex": "Silence",
+        "netherlands": "هلند 🇳🇱",
+        "four_locations": "چهار لوکیشن 🇩🇪🇹🇷🇬🇧🇧🇬 (سرعت عالی)"
+    }
+    return mapping.get(loc_code, "نامشخص")
 
 RULES_TEXT = f"""
 <b>📜 قوانین و مقررات استفاده از سرویس</b>
@@ -116,21 +126,26 @@ async def select_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton(f"⚡️ سرویس Silence ({PRICES['vortex']}T)", callback_data="loc_vortex")],
         [InlineKeyboardButton(f"🇳🇱 سرویس هلند ({PRICES['netherlands']}T)", callback_data="loc_netherlands")],
+        # دکمه مستقیم سرویس چهار لوکیشن بدون نیاز به منوی اضافی
+        [InlineKeyboardButton(f"🌐 سرویس چهار لوکیشن ({PRICES['four_locations']}T)", callback_data="loc_four_locations")],
         [InlineKeyboardButton("🔙 برگشت", callback_data="home")]
     ]
-    await q.edit_message_text(f"<b>🌐 انتخاب لوکیشن سرویس</b>\n{DIVIDER}\nلطفاً لوکیشن مورد نظر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    await q.edit_message_text(f"<b>🌐 انتخاب سرویس</b>\n{DIVIDER}\nلطفاً سرویس مورد نظر خود را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
-    loc = q.data.split("_")[1]
+    
+    loc = q.data.replace("loc_", "")
     price = PRICES[loc]
     
-    # تنظیم محدوده حجم‌ها (هلند ۱ تا ۱۵ گیگ)
+    # تعیین محدوده حجم‌ها بر اساس نوع سرویس
     if loc == "vortex":
         plan_list = list(range(1, 11)) # ۱ تا ۱۰ گیگ
-    else: # netherlands
+    elif loc == "netherlands":
         plan_list = list(range(1, 16)) # ۱ تا ۱۵ گیگ
+    else:
+        plan_list = list(range(1, 21)) # ۱ تا ۲۰ گیگ برای سرویس چهار لوکیشن
         
     keyboard = []
     for i in range(0, len(plan_list), 3):
@@ -141,21 +156,23 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 row.append(InlineKeyboardButton(f"{p}GB", callback_data=f"plan_{loc}_{p}"))
         keyboard.append(row)
     
-    keyboard.append([InlineKeyboardButton("🔙 برگشت به لوکیشن‌ها", callback_data="go_locations")])
+    keyboard.append([InlineKeyboardButton("🔙 برگشت به سرویس‌ها", callback_data="go_locations")])
     
-    loc_display = "Silence" if loc == "vortex" else "هلند 🇳🇱"
+    loc_display = get_loc_display(loc)
     await q.edit_message_text(f"<b>⚡️ سرویس {loc_display} (گیگی {price} تومان)</b>\n{DIVIDER}\nحجم مورد نظر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
 async def order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
+    
     data = q.data.split("_")
-    loc = data[1]
-    plan = int(data[2])
+    plan = int(data[-1])
+    loc = "_".join(data[1:-1])
+    
     total_price = plan * PRICES[loc]
     
     user_data[q.from_user.id] = {"plan": plan, "loc": loc}
-    loc_display = "Silence" if loc == "vortex" else "هلند 🇳🇱"
+    loc_display = get_loc_display(loc)
     
     await q.edit_message_text(f"<b>📦 فاکتور نهایی</b>\n{DIVIDER}\n🌍 لوکیشن: {loc_display}\n📊 حجم: {plan}GB\n💰 قیمت: {total_price:,} تومان\n\n💳 کارت: <code>{CARD}</code>\n\n📸 رسید را اینجا بفرستید.", parse_mode="HTML")
 
@@ -169,7 +186,7 @@ async def receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if plan == 0: return
 
-    loc_display = "Silence" if loc == "vortex" else "هلند 🇳🇱"
+    loc_display = get_loc_display(loc)
 
     for admin in ADMIN_IDS:
         try:
